@@ -17,14 +17,23 @@ import io.nekohasekai.libbox.NeighborUpdateListener
 import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.PlatformUser
 import io.nekohasekai.libbox.ShellSession
+import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.TunOptions
 import io.nekohasekai.libbox.WIFIState
-import io.nekohasekai.libbox.StringIterator
 import java.net.InetSocketAddress
 
-/** Android VpnService platform for the real libbox CommandServer. */
-internal class LibboxAndroidPlatform(private val service: VpnService, private val packages: List<String>) : PlatformInterface {
+/**
+ * Реализация PlatformInterface для Android VpnService.
+ *
+ * TUN создаётся Android VpnService.Builder, а дескриптор передаётся реальному
+ * libbox через PlatformInterface.openTun().
+ */
+internal class LibboxAndroidPlatform(
+    private val service: VpnService,
+    private val packages: List<String>,
+) : PlatformInterface {
     private val connectivity = service.getSystemService(ConnectivityManager::class.java)
+
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
     override fun autoDetectInterfaceControl(fd: Int) { check(service.protect(fd)) { "Не удалось защитить сокет libbox от VPN-петли" } }
 
@@ -35,10 +44,9 @@ internal class LibboxAndroidPlatform(private val service: VpnService, private va
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
         addAddresses(builder, options)
         addRoutes(builder, options)
-        // Package filtering is intentionally NOT implemented with
-        // addAllowedApplication/addDisallowedApplication: those APIs exclude
-        // traffic from the VPN and permit a bypass. libbox route.package_name
-        // rules enforce the allowlist after all traffic enters the TUN.
+        // Security boundary is enforced by libbox route.package_name + final=block.
+        // Android addAllowedApplication/addDisallowedApplication is deliberately
+        // not used because applications excluded from the VPN can bypass policy.
         return (builder.establish() ?: error("Android не смог создать TUN-интерфейс")).detachFd()
     }
 
