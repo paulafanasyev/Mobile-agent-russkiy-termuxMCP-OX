@@ -34,7 +34,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Установить JavaScript-зависимости
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: TypeScript typecheck
         run: pnpm exec tsc --noEmit
       - name: Unit tests
@@ -132,7 +132,7 @@ jobs:
           test -s "$MAVEN_DIR/libbox-1.0.0.aar"
           test -s "$MAVEN_DIR/libbox-1.0.0.pom"
       - name: Установить JavaScript-зависимости
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Expo prebuild
         run: pnpm exec expo prebuild --platform android --clean
       - name: Зафиксировать Android SDK и Gradle для Gradle/AGP совместимости

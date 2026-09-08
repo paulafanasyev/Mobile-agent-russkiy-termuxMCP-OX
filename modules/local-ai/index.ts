@@ -2,7 +2,21 @@ import { requireNativeModule } from "expo-modules-core";
 import { Platform } from "react-native";
 import * as Speech from "expo-speech";
 import { ExpoSpeechRecognitionModule } from "expo-speech-recognition";
-import TTSKit from "react-native-tts-kit";
+
+/**
+ * Neural TTS provider boundary.
+ *
+ * The previous implementation imported `react-native-tts-kit` directly, but
+ * that native dependency was removed from package.json (commit 8b0591f) as
+ * unavailable. Until a real neural-TTS native module is re-introduced, this
+ * stays a no-op that falls through to the stable Android system TTS
+ * (`expo-speech`). This keeps the bundle honest and importable.
+ */
+interface NeuralTtsProvider {
+  speak?: (text: string, opts?: Record<string, unknown>) => Promise<unknown>;
+  stop?: () => Promise<unknown>;
+}
+const neuralTts: NeuralTtsProvider = {};
 
 export type MobileAgentVoiceCapabilities = {
   supported: boolean;
@@ -18,12 +32,7 @@ let neuralTtsEnabled = true;
 
 export const MobileAgentVoice = {
   capabilities: async (): Promise<MobileAgentVoiceCapabilities> => {
-    let neuralTtsAvailable = false;
-    try {
-      neuralTtsAvailable = typeof TTSKit?.speak === "function";
-    } catch {
-      neuralTtsAvailable = false;
-    }
+    const neuralTtsAvailable = typeof neuralTts?.speak === "function";
 
     return {
       supported: Platform.OS === "android" ? ExpoSpeechRecognitionModule.isRecognitionAvailable() : true,
@@ -94,8 +103,8 @@ export const MobileAgentVoice = {
 
     if (neuralTtsEnabled) {
       try {
-        if (typeof TTSKit?.speak === "function") {
-          await TTSKit.speak(text, { voice: "F1", language: "ru" });
+        if (typeof neuralTts?.speak === "function") {
+          await neuralTts.speak(text, { voice: "F1", language: "ru" });
           return true;
         }
       } catch {
@@ -110,7 +119,7 @@ export const MobileAgentVoice = {
 
   stopSpeaking: async (): Promise<boolean> => {
     try {
-      if (typeof TTSKit?.stop === "function") await TTSKit.stop();
+      if (typeof neuralTts?.stop === "function") await neuralTts.stop();
     } catch {
       // System TTS cleanup below remains authoritative.
     }
@@ -124,3 +133,7 @@ export const LocalAi = requireNativeModule<{
   loadModel(path: string): Promise<Record<string, unknown>>;
   unloadModel(): Promise<void>;
 }>("LocalAi");
+
+// Re-export the native Svetlana voice module so consumers can import it
+// from the package root (`modules/local-ai`).
+export { SvetlanaVoice, getAzureSpeechCredentials } from "./src/voice";

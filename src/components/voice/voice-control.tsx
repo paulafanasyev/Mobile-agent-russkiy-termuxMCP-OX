@@ -5,7 +5,7 @@ import { Mic, MicOff, Volume2 } from "lucide-react-native";
 import { useChat } from "@/hooks/use-chat";
 import { useTheme } from "@/hooks/use-theme";
 // Voice remains attached to the existing working chat surface; there is no dedicated Svetlana screen.
-import { SvetlanaVoice } from "../../../modules/local-ai";
+import { SvetlanaVoice, getAzureSpeechCredentials } from "../../../modules/local-ai";
 
 async function ensureMicrophonePermission() {
   if (Platform.OS !== "android") return true;
@@ -23,6 +23,12 @@ async function ensureMicrophonePermission() {
     },
   );
   return result === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+/** Speak text through the native Azure-backed Svetlana voice module. */
+async function speakText(text: string): Promise<boolean> {
+  const { subscriptionKey, region } = await getAzureSpeechCredentials();
+  return SvetlanaVoice.speak(text, subscriptionKey, region);
 }
 
 export function VoiceControl() {
@@ -44,7 +50,7 @@ export function VoiceControl() {
       return;
     }
     lastSpokenId.current = assistant.id;
-    void SvetlanaVoice.speak(assistant.content).catch(() => undefined);
+    void speakText(assistant.content).catch(() => undefined);
   }, [busy, messages]);
 
   async function toggleListening() {
@@ -80,7 +86,7 @@ export function VoiceControl() {
     if (!assistant) return;
     setError(null);
     try {
-      await SvetlanaVoice.speak(assistant.content);
+      await speakText(assistant.content);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось озвучить ответ.");
     }

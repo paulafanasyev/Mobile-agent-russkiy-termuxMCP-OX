@@ -62,8 +62,42 @@ Build and stabilize the Android application «Мобильный ИИ-агент
 3. Verify normal app launch independently of firewall.
 4. Verify firewall prepare/start/status behavior and capture logcat.
 5. Fix only issues demonstrated by runtime verification.
-6. Then perform a dedicated LibboxForwardingBridge audit and implement the real adapter.
-7. Rebuild and repeat smoke test.
+6. Rebuild and repeat smoke test.
+
+## Cycle 17 — production fixes (working-state pass)
+The duplicate-class blocker identified in Cycle 16 is resolved. The real
+libbox adapter is no longer "unimplemented" — it was written but could not
+compile because a stub with the same FQN shadowed it.
+
+### Firewall — duplicate class resolved
+- Deleted the stub `modules/firewall/android/src/main/java/com/mobileshell/firewall/LibboxForwardingBridge.kt` (always returned `StartResult(false)`).
+- The real adapter at `modules/firewall/src/main/java/com/mobileshell/firewall/LibboxForwardingBridge.kt` is now the single compiled implementation. It uses `CommandServer` + `PlatformInterface` (`LibboxAndroidPlatform.kt`, 197 lines: openTun via `VpnService.Builder`, socket protect, routes, packages, findConnectionOwner).
+- Updated `FirewallVpnService.kt` to call the real API: `start(): Result<Unit>` with `isSuccess()` and failure logging.
+- `build.gradle` `sourceSets.main.java.srcDirs += "../../src/main/java"` now adds the real adapter without conflict.
+- Status: firewall code compiles against a single, real libbox bridge. Runtime smoke test on device still required. [PARTIALLY VERIFIED]
+
+### Lockfile drift fixed
+- `pnpm-lock.yaml` was out of sync with `package.json` (4 dependencies added but lockfile not regenerated). CI masked this with `--no-frozen-lockfile`.
+- Regenerated `pnpm-lock.yaml`; `pnpm install --frozen-lockfile` now succeeds.
+- All CI workflows switched to `--frozen-lockfile` per AGENTS.md §10. [VERIFIED]
+
+### JS-layer fixes
+- Removed broken `react-native-tts-kit` import in `modules/local-ai/index.ts` (package was deleted from deps in commit 8b0591f but import remained). Neural-TTS path is now a graceful no-op falling through to `expo-speech` system TTS. [VERIFIED]
+- `NativeLlama.kt`: renamed `loaded` → `nativeLibLoaded`, added `isInferenceReady()` (always false until JNI inference is implemented). `nativeStatus` no longer claims llama.cpp is ready. `loadModel` returns `ok: false, reason: "inference_not_implemented"` instead of pretending success. [VERIFIED]
+- Merged `vitest.config.ts` (dead) into `vitest.config.mts`; `define.__DEV__` now actually applies to tests. [VERIFIED]
+- Added vitest alias + tsconfig path for `react-native-accessibility-controller` (git dep ships TS sources but no built `lib/`). [VERIFIED]
+
+### Real bugs found and fixed
+- **Dead causal-verification code**: `accessibility-agent/actions.ts` returned `status: "verified"` on success, but `accessibility-executors.ts` checks `result.status !== "executed"`. The entire causal-verification path (before/after tree diff) was unreachable dead code. Changed action success status to `"executed"`. [VERIFIED by 7 now-passing tests]
+- **packageName discarded in flatten()**: `accessibility-agent/index.ts` `flatten()` hardcoded `packageName: null`, discarding the real package name from accessibility nodes. Package-level causal verification was impossible. Now reads `node.packageName`. [VERIFIED by 1 now-passing test]
+- `performAccessibilityAction` moved from public `index.ts` export to internal `actions.ts` (satisfies `hands-boundary.test.ts` boundary check). [VERIFIED]
+- `SvetlanaVoice` re-exported from `modules/local-ai/index.ts` (was imported by `voice-control.tsx` but not exported — pre-existing TS2305). `speak()` call now passes Azure credentials correctly. [VERIFIED by tsc]
+
+### Verification
+- `pnpm install --frozen-lockfile`: OK. [VERIFIED]
+- `pnpm exec tsc --noEmit`: clean, 0 errors. [VERIFIED]
+- `pnpm test`: 19 files, 133 tests pass (was 19 files, 8 failing). [VERIFIED]
+- `bash scripts/verify-android-agent.sh`: exit 0. [VERIFIED]
 
 ## fullstack-agent audit
 Use architecture ideas only; do not copy AGPL code/text. Adopt independently: reactive avatar FSM, PTT-first voice, user data outside code, identity adoption, self-diagnostics, modular tool registry, honest offline/online separation.

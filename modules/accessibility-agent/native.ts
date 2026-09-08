@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import type { AccessibilityAction } from '../../src/tools/accessibility-tools'
 import type { AccessibilityNode } from './index'
-import { performAccessibilityAction } from './index'
+import { performAccessibilityAction } from './actions'
 
 export type NativeAccessibilityResult = {
   status: string

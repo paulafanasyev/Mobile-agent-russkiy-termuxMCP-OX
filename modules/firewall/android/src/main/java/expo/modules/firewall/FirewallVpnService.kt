@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import com.mobileshell.firewall.LibboxForwardingBridge
 import org.json.JSONObject
 
@@ -30,13 +31,14 @@ class FirewallVpnService : VpnService() {
         val config = createFirewallConfig()
         val newBridge = LibboxForwardingBridge(this, this, packages)
         val result = newBridge.start(config)
-        if (result.isSuccess) {
+        if (result.isSuccess()) {
             bridge?.stop()
             bridge = newBridge
             FirewallRuntimeState.set(true, packages)
             return START_STICKY
         }
 
+        result.exceptionOrNull()?.let { Log.e(TAG, "libbox forwarding не запущен", it) }
         newBridge.stop()
         FirewallRuntimeState.set(false, emptyList())
         stopSelf()
@@ -129,6 +131,7 @@ class FirewallVpnService : VpnService() {
     }
 
     companion object {
+        private const val TAG = "MobileAgentFirewall"
         const val EXTRA_PACKAGES = "allowed_packages"
         const val EXTRA_MODE = "firewall_mode"
         private const val NOTIFICATION_ID = 27001

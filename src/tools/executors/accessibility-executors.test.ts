@@ -14,6 +14,29 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }))
 
+// The git dependency ships TS sources that call TurboModuleRegistry at
+// module top-level, which cannot run in a node test environment. Mock the
+// whole package so the executor's causal-verification logic is exercised
+// against the controlled `native` fns instead of the real native runtime.
+vi.mock('react-native-accessibility-controller', () => ({
+  getAccessibilityTree: (..._args: unknown[]) => native.getTree(),
+  findNode: vi.fn(),
+  waitForNode: vi.fn(),
+  onAccessibilityEvent: vi.fn(),
+  onWindowChange: vi.fn(),
+  isServiceEnabled: () => native.isEnabled(),
+  requestServiceEnable: vi.fn(),
+  tapNode: vi.fn(async () => true),
+  longPressNode: vi.fn(async () => true),
+  setNodeText: vi.fn(async () => true),
+  scrollNode: vi.fn(async () => true),
+  tap: vi.fn(async () => true),
+  longPress: vi.fn(async () => true),
+  swipe: vi.fn(async () => true),
+  globalAction: vi.fn(async () => true),
+  openApp: vi.fn(async () => true),
+}))
+
 const node = (
   id: string,
   text: string | null,

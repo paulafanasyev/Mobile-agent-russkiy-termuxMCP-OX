@@ -12,7 +12,8 @@
       "process-text": ["./modules/process-text/index.ts"],
       "device-automation": ["./modules/device-automation/index.ts"],
       "saf-file-operations": ["./modules/saf-file-operations/index.ts"],
-      "accessibility-agent": ["./modules/accessibility-agent/index.ts"]
+      "accessibility-agent": ["./modules/accessibility-agent/index.ts"],
+      "react-native-accessibility-controller": ["./node_modules/react-native-accessibility-controller/src/index.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"],

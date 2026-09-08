@@ -30,8 +30,8 @@ jobs:
           node --version
           pnpm --version
 
-      - name: Установить зависимости и синхронизировать lockfile
-        run: pnpm install --no-frozen-lockfile
+      - name: Установить зависимости (frozen lockfile)
+        run: pnpm install --frozen-lockfile
 
       - name: Проверить конфигурацию
         run: bash scripts/verify-android-agent.sh

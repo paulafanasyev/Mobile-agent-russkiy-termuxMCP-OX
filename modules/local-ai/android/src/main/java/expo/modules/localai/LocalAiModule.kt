@@ -10,9 +10,9 @@ class LocalAiModule : Module() {
 
     AsyncFunction("nativeStatus") {
       mapOf(
-        "supported" to true,
         "backend" to "llama.cpp",
-        "loaded" to NativeLlama.isLoaded(),
+        "nativeLibLoaded" to NativeLlama.isNativeLibLoaded(),
+        "inferenceReady" to NativeLlama.isInferenceReady(),
         "message" to NativeLlama.statusMessage(),
       )
     }

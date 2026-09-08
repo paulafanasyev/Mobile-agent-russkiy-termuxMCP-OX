@@ -6,15 +6,6 @@ import {
   onWindowChange,
   isServiceEnabled,
   requestServiceEnable,
-  tapNode,
-  longPressNode,
-  setNodeText,
-  scrollNode,
-  tap,
-  longPress,
-  swipe,
-  globalAction,
-  openApp,
 } from "react-native-accessibility-controller";
 
 export const HANDS_MAX_TREE_NODES = 200;
@@ -45,7 +36,7 @@ function flatten(nodes: any[], out: AccessibilityNode[] = []): AccessibilityNode
           ? node.contentDescription.slice(0, HANDS_MAX_TEXT_LENGTH)
           : null,
       className: node.className ?? null,
-      packageName: null,
+      packageName: typeof node.packageName === "string" ? node.packageName : null,
       clickable: node.isClickable === true,
       scrollable: node.isScrollable === true,
       editable: node.isEditable === true,
@@ -105,29 +96,4 @@ export function subscribeToWindowChanges(callback: (window: unknown) => void) {
 export async function openAccessibilitySettings(): Promise<boolean> {
   await requestServiceEnable();
   return true;
-}
-
-export async function performAccessibilityAction(action: any): Promise<{ status: string; action: string }> {
-  try {
-    const type = String(action?.type ?? "unknown");
-    let ok = false;
-    switch (type) {
-      case "back": ok = await globalAction("back"); break;
-      case "home": ok = await globalAction("home"); break;
-      case "recents": ok = await globalAction("recents"); break;
-      case "notifications": ok = await globalAction("notifications"); break;
-      case "quick_settings": ok = await globalAction("quickSettings"); break;
-      case "power_dialog": ok = await globalAction("powerDialog"); break;
-      case "tap": ok = action.nodeId ? await tapNode(action.nodeId) : await tap(action.x, action.y); break;
-      case "long_press": ok = action.nodeId ? await longPressNode(action.nodeId) : await longPress(action.x, action.y); break;
-      case "swipe": ok = await swipe(action.x, action.y, action.x2, action.y2, action.durationMs ?? 300); break;
-      case "type": ok = await setNodeText(action.nodeId, String(action.text ?? "").slice(0, HANDS_MAX_TEXT_LENGTH)); break;
-      case "scroll": ok = await scrollNode(action.nodeId, action.direction ?? "down"); break;
-      case "open_app": ok = await openApp(action.packageName); break;
-      default: return { status: "unsupported", action: type };
-    }
-    return { status: ok === true ? "verified" : "failed", action: type };
-  } catch {
-    return { status: "failed", action: String(action?.type ?? "unknown") };
-  }
 }

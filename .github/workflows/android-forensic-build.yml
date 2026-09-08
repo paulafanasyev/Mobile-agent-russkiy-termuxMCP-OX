@@ -48,7 +48,7 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-21 platforms;android-23 platforms;android-35 platforms;android-36 build-tools;35.0.0 build-tools;36.0.0 ndk;28.0.13004108'
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build libbox
         shell: bash
         run: |
