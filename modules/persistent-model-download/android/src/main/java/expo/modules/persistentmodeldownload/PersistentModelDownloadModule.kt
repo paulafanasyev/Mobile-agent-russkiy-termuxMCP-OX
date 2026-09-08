@@ -10,108 +10,67 @@ import androidx.work.workDataOf
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import java.io.File
 
 class PersistentModelDownloadModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PersistentModelDownload")
-
     AsyncFunction("prepareNotifications") {
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
       ModelDownloadWorker.ensureNotificationChannel(context)
     }
-
     AsyncFunction("startDownload") {
-        modelId: String,
-        url: String,
-        sha256: String,
-        expectedBytesValue: Double,
-        label: String ->
+      modelId: String, url: String, sha256: String, expectedBytesValue: Double, label: String ->
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      ModelDownloadWorker.validateModelRequest(modelId, url, sha256)
       val expectedBytes = expectedBytesValue.toLong()
       val targetFile = ModelDownloadWorker.targetFile(context, modelId)
-
       ModelDownloadWorker.ensureNotificationChannel(context)
       if (targetFile.exists()) {
-        return@AsyncFunction statusMap(
-          state = "succeeded",
-          bytesDownloaded = targetFile.length(),
-          totalBytes = expectedBytes,
-        )
+        if (ModelDownloadWorker.verifySha256(targetFile, sha256)) return@AsyncFunction statusMap("succeeded", targetFile.length(), expectedBytes)
+        targetFile.delete()
       }
-
       val workManager = WorkManager.getInstance(context)
       val uniqueName = ModelDownloadWorker.uniqueWorkName(modelId)
-      val currentWork = workManager.getWorkInfosForUniqueWork(uniqueName).get()
-        .firstOrNull { !it.state.isFinished }
-
+      val currentWork = workManager.getWorkInfosForUniqueWork(uniqueName).get().firstOrNull { !it.state.isFinished }
       if (currentWork == null) {
         val request = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
-          .setConstraints(
-            Constraints.Builder()
-              .setRequiredNetworkType(NetworkType.CONNECTED)
-              .build(),
-          )
-          .setInputData(
-            workDataOf(
-              ModelDownloadWorker.KEY_MODEL_ID to modelId,
-              ModelDownloadWorker.KEY_URL to url,
-              ModelDownloadWorker.KEY_SHA256 to sha256,
-              ModelDownloadWorker.KEY_EXPECTED_BYTES to expectedBytes,
-              ModelDownloadWorker.KEY_LABEL to label,
-            ),
-          )
+          .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+          .setInputData(workDataOf(
+            ModelDownloadWorker.KEY_MODEL_ID to modelId,
+            ModelDownloadWorker.KEY_URL to url,
+            ModelDownloadWorker.KEY_SHA256 to sha256,
+            ModelDownloadWorker.KEY_EXPECTED_BYTES to expectedBytes,
+            ModelDownloadWorker.KEY_LABEL to label,
+          ))
           .addTag(ModelDownloadWorker.TAG_MODEL_DOWNLOAD)
           .build()
-
         workManager.enqueueUniqueWork(uniqueName, ExistingWorkPolicy.REPLACE, request)
       }
-
       downloadStatus(context, modelId, expectedBytes)
     }
-
     AsyncFunction("getDownloadStatus") { modelId: String, expectedBytesValue: Double ->
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      ModelDownloadWorker.validateModelId(modelId)
       downloadStatus(context, modelId, expectedBytesValue.toLong())
     }
-
     AsyncFunction("cancelDownload") { modelId: String ->
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
-      WorkManager.getInstance(context)
-        .cancelUniqueWork(ModelDownloadWorker.uniqueWorkName(modelId))
+      ModelDownloadWorker.validateModelId(modelId)
+      WorkManager.getInstance(context).cancelUniqueWork(ModelDownloadWorker.uniqueWorkName(modelId))
       Unit
     }
   }
 
-  private fun downloadStatus(
-    context: android.content.Context,
-    modelId: String,
-    expectedBytes: Long,
-  ): Map<String, Any?> {
+  private fun downloadStatus(context: android.content.Context, modelId: String, expectedBytes: Long): Map<String, Any?> {
     val target = ModelDownloadWorker.targetFile(context, modelId)
-    if (target.exists()) {
-      return statusMap("succeeded", target.length(), expectedBytes)
-    }
-
     val partial = ModelDownloadWorker.partialFile(context, modelId)
-    val workInfo = WorkManager.getInstance(context)
-      .getWorkInfosForUniqueWork(ModelDownloadWorker.uniqueWorkName(modelId))
-      .get()
-      .firstOrNull { !it.state.isFinished }
-      ?: WorkManager.getInstance(context)
-        .getWorkInfosForUniqueWork(ModelDownloadWorker.uniqueWorkName(modelId))
-        .get()
-        .firstOrNull()
-
+    val workInfos = WorkManager.getInstance(context).getWorkInfosForUniqueWork(ModelDownloadWorker.uniqueWorkName(modelId)).get()
+    val workInfo = workInfos.firstOrNull { !it.state.isFinished } ?: workInfos.firstOrNull()
     val progressData = workInfo?.progress
     val outputData = workInfo?.outputData
-    val bytesDownloaded =
-      progressData?.getLong(ModelDownloadWorker.KEY_BYTES_DOWNLOADED, partial.length())
-        ?: partial.length()
-    val totalBytes =
-      progressData?.getLong(ModelDownloadWorker.KEY_TOTAL_BYTES, expectedBytes)
-        ?: expectedBytes
-    val state = when (workInfo?.state) {
+    val bytesDownloaded = progressData?.getLong(ModelDownloadWorker.KEY_BYTES_DOWNLOADED, partial.length()) ?: partial.length()
+    val totalBytes = progressData?.getLong(ModelDownloadWorker.KEY_TOTAL_BYTES, expectedBytes) ?: expectedBytes
+    val state = if (target.exists()) "succeeded" else when (workInfo?.state) {
       WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> "queued"
       WorkInfo.State.RUNNING -> "downloading"
       WorkInfo.State.SUCCEEDED -> "succeeded"
@@ -119,27 +78,12 @@ class PersistentModelDownloadModule : Module() {
       WorkInfo.State.CANCELLED -> "cancelled"
       null -> "idle"
     }
-
-    return statusMap(
-      state,
-      bytesDownloaded,
-      totalBytes,
-      outputData?.getString(ModelDownloadWorker.KEY_ERROR),
-    )
+    return statusMap(state, bytesDownloaded, totalBytes, outputData?.getString(ModelDownloadWorker.KEY_ERROR))
   }
 
-  private fun statusMap(
-    state: String,
-    bytesDownloaded: Long,
-    totalBytes: Long,
-    error: String? = null,
-  ): Map<String, Any?> = mapOf(
+  private fun statusMap(state: String, bytesDownloaded: Long, totalBytes: Long, error: String? = null): Map<String, Any?> = mapOf(
     "state" to state,
-    "progress" to if (totalBytes > 0) {
-      (bytesDownloaded.toDouble() / totalBytes).coerceIn(0.0, 1.0)
-    } else {
-      0.0
-    },
+    "progress" to if (totalBytes > 0) (bytesDownloaded.toDouble() / totalBytes).coerceIn(0.0, 1.0) else 0.0,
     "bytesDownloaded" to bytesDownloaded.toDouble(),
     "totalBytes" to totalBytes.toDouble(),
     "error" to error,
