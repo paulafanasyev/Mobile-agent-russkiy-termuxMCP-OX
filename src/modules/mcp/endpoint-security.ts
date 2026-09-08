@@ -12,11 +12,13 @@ export function isBlockedIpAddress(value: string): boolean {
     return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
   }
   if (!host.includes(":")) return false;
-  const compact = host.replace(/^::ffff:/, "");
-  if (compact !== host && isValidIpv4(compact)) return isBlockedIpAddress(compact);
-  const first = Number.parseInt(host.split(":")[0] || "0", 16);
-  const second = Number.parseInt(host.split(":")[1] || "0", 16);
-  return host === "::" || host === "::1" || (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80 || first === 0xff00 || (first === 0 && second === 0);
+  const mapped = host.match(/^(?:::ffff:)(\d{1,3}(?:\.\d{1,3}){3})$/i);
+  if (mapped && isValidIpv4(mapped[1])) return isBlockedIpAddress(mapped[1]);
+  const hextets = host.split(":");
+  const first = Number.parseInt(hextets[0] || "0", 16);
+  const second = Number.parseInt(hextets[1] || "0", 16);
+  if (!Number.isFinite(first) || first < 0 || first > 0xffff) return false;
+  return host === "::" || host === "::1" || (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00 || (first === 0 && second === 0);
 }
 
 export function validateResolvedMcpAddresses(addresses: readonly string[], options: { allowPrivateNetwork?: boolean } = {}): void {
@@ -31,12 +33,6 @@ export type McpEndpointSecurityOptions = {
   allowPrivateNetwork?: boolean;
 };
 
-/**
- * Validate an MCP endpoint before persistence/connection. DNS answers must be
- * passed through validateResolvedMcpAddresses immediately before connecting.
- * The native/network layer must pin that validated resolution for the socket;
- * a second DNS lookup after validation would re-open a rebinding race.
- */
 export function validateMcpEndpoint(rawUrl: string, options: McpEndpointSecurityOptions = {}): URL {
   const { allowLoopbackHttp = true, allowPrivateNetwork = false } = options;
   let parsed: URL;
@@ -44,7 +40,6 @@ export function validateMcpEndpoint(rawUrl: string, options: McpEndpointSecurity
   if (!["http:", "https:", "ws:", "wss:"].includes(parsed.protocol)) throw new Error("MCP server URL must use HTTP(S) or WS(S).");
   if (parsed.username || parsed.password) throw new Error("MCP server URL must not contain embedded credentials.");
   if (parsed.hash) throw new Error("MCP server URL must not contain a fragment.");
-
   const host = parsed.hostname.toLowerCase();
   const loopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
   if ((parsed.protocol === "http:" || parsed.protocol === "ws:") && !(loopback && allowLoopbackHttp)) throw new Error("Cleartext MCP transport is allowed only for loopback endpoints.");
