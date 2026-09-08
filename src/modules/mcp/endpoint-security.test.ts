@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateMcpEndpoint } from "./endpoint-security";
+import { isBlockedIpAddress, validateMcpEndpoint, validateResolvedMcpAddresses } from "./endpoint-security";
 
 describe("MCP endpoint security", () => {
   it("accepts HTTPS endpoints", () => {
@@ -14,15 +14,23 @@ describe("MCP endpoint security", () => {
     expect(() => validateMcpEndpoint("http://example.com/mcp")).toThrow();
   });
 
-  it("rejects embedded credentials", () => {
+  it("rejects embedded credentials and fragments", () => {
     expect(() => validateMcpEndpoint("https://user:pass@example.com/mcp")).toThrow();
+    expect(() => validateMcpEndpoint("https://example.com/mcp#fragment")).toThrow();
   });
 
-  it("rejects private IPv4 addresses by default", () => {
-    expect(() => validateMcpEndpoint("https://192.168.1.20/mcp")).toThrow();
+  it("rejects private, mapped and multicast literals", () => {
+    expect(isBlockedIpAddress("192.168.1.20")).toBe(true);
+    expect(isBlockedIpAddress("::ffff:192.168.1.20")).toBe(true);
+    expect(isBlockedIpAddress("ff02::1")).toBe(true);
   });
 
-  it("rejects loopback IPv6 except explicit local endpoint", () => {
-    expect(() => validateMcpEndpoint("https://[::1]:8787/mcp")).not.toThrow();
+  it("rejects private DNS answers immediately before connection", () => {
+    expect(() => validateResolvedMcpAddresses(["93.184.216.34", "10.0.0.7"])).toThrow();
+    expect(() => validateResolvedMcpAddresses(["93.184.216.34"])).not.toThrow();
+  });
+
+  it("allows explicit private-network policy", () => {
+    expect(() => validateResolvedMcpAddresses(["10.0.0.7"], { allowPrivateNetwork: true })).not.toThrow();
   });
 });
