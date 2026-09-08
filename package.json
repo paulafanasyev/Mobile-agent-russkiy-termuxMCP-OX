@@ -14,6 +14,7 @@
     "@expo/ui": "~57.0.3",
     "@shopify/flash-list": "2.3.2",
     "@tanstack/react-query": "^5.101.2",
+    "@ai-sdk/openai": "^4.0.5",
     "ai": "^7.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -52,7 +53,6 @@
     "expo-web-browser": "~57.0.0",
     "lucide-react-native": "^1.22.0",
     "nativewind": "^4.2.6",
-    "ollama-ai-provider-v2": "^4.0.1",
     "punycode": "^2.3.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -88,10 +88,7 @@
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/TecnicalBot/mobile-agent"
-  },
+  "repository": { "type": "git", "url": "https://github.com/TecnicalBot/mobile-agent" },
   "license": "MIT",
   "scripts": {
     "start": "expo start",
@@ -102,13 +99,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "expo lint",
+    "security:forensic": "node ./scripts/security-forensic-gate.mjs",
     "postinstall": "node ./scripts/patch-ai-sdk-react-native.js"
   },
   "private": true,
   "packageManager": "pnpm@10.29.2",
-  "expo": {
-    "autolinking": {
-      "nativeModulesDir": "./modules"
-    }
-  }
+  "expo": { "autolinking": { "nativeModulesDir": "./modules" } }
 }
