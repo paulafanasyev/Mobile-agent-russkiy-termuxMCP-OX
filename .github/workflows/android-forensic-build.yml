@@ -99,27 +99,26 @@ jobs:
           BUILD=android/app/build.gradle
           test -f "$PROPS"
           test -f "$BUILD"
-
-          # Expo generates packagingOptions dynamically from gradle.properties.
-          # Therefore the concrete Netty paths must be verified in PROPS, while
-          # build.gradle must be verified to contain the dynamic bridge.
           grep -Fxq 'android.packagingOptions.pickFirsts=META-INF/io.netty.versions.properties' "$PROPS"
           grep -Fxq 'android.packagingOptions.excludes=META-INF/INDEX.LIST' "$PROPS"
           ! grep -Fq 'META-INF/INDEX.LISTorg.gradle.jvmargs=' "$PROPS"
           ! grep -Fq 'META-INF/io.netty.versions.propertiesorg.gradle.jvmargs=' "$PROPS"
-
-          if [ "$(tail -c 1 "$PROPS" | od -An -t x1 | tr -d ' \n')" != '0a' ]; then
-            printf '\n' >> "$PROPS"
-          fi
+          if [ "$(tail -c 1 "$PROPS" | od -An -t x1 | tr -d ' \n')" != '0a' ]; then printf '\n' >> "$PROPS"; fi
           test "$(tail -c 1 "$PROPS" | od -An -t x1 | tr -d ' \n')" = '0a'
-
           grep -Fq 'packagingOptions {' "$BUILD"
           grep -Fq 'findProperty("android.packagingOptions.$prop")' "$BUILD"
           grep -Fq 'android.packagingOptions[prop] += it' "$BUILD"
           echo 'GENERATED_NETTY_PACKAGING=PASS'
       - name: Assemble debug APK
         working-directory: android
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace --info --console=plain -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"
+        shell: bash
+        run: |
+          set +e
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace --info --console=plain -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" > "$RUNNER_TEMP/debug-build.log" 2>&1
+          rc=$?
+          cat "$RUNNER_TEMP/debug-build.log"
+          echo "ASSEMBLE_DEBUG_EXIT_CODE=$rc"
+          exit "$rc"
       - name: Assemble release APK
         working-directory: android
         shell: bash
@@ -135,15 +134,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp android/app/build.gradle "$RUNNER_TEMP/generated-app-build.gradle"
-          {
-            echo '=== signing / upload ==='
-            grep -nEi 'signingConfigs|MYAPP_UPLOAD|storeFile|storePassword|keyAlias|keyPassword' android/app/build.gradle || true
-            echo '=== bundle / react ==='
-            grep -nEi 'bundleIn|createBundle|jsAndAssets|enableHermes|react' android/app/build.gradle || true
-            echo '=== assemble release references ==='
-            grep -nEi 'assembleRelease|release' android/app/build.gradle || true
-          } > "$RUNNER_TEMP/generated-app-build-grep.txt"
+          if test -f android/app/build.gradle; then
+            cp android/app/build.gradle "$RUNNER_TEMP/generated-app-build.gradle"
+            {
+              echo '=== signing / upload ==='
+              grep -nEi 'signingConfigs|MYAPP_UPLOAD|storeFile|storePassword|keyAlias|keyPassword' android/app/build.gradle || true
+              echo '=== bundle / react ==='
+              grep -nEi 'bundleIn|createBundle|jsAndAssets|enableHermes|react' android/app/build.gradle || true
+              echo '=== assemble release references ==='
+              grep -nEi 'assembleRelease|release' android/app/build.gradle || true
+            } > "$RUNNER_TEMP/generated-app-build-grep.txt"
+          fi
       - name: Verify APKs
         shell: bash
         run: |
@@ -170,8 +171,9 @@ jobs:
           name: android-forensic-build-diagnostics
           path: |
             ${{ runner.temp }}/libbox-build.log
-            ${{ runner.temp }}/gradle-*.log
+            ${{ runner.temp }}/debug-build.log
             ${{ runner.temp }}/release-build.log
+            ${{ runner.temp }}/gradle-*.log
             ${{ runner.temp }}/generated-app-build.gradle
             ${{ runner.temp }}/generated-app-build-grep.txt
             android/hs_err_pid*.log
