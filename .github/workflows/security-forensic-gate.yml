@@ -1,0 +1,43 @@
+name: Security Forensic Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  static-security:
+    name: Static security invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.29.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Reject Android cleartext traffic
+        run: |
+          if grep -RIn --exclude-dir=node_modules --exclude='*.lock' 'usesCleartextTraffic[[:space:]]*:[[:space:]]*true' app.json plugins modules src; then
+            echo 'SECURITY GATE FAILED: Android cleartext traffic is enabled.'
+            exit 1
+          fi
+      - name: Verify privileged tools are approval gated
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const source = fs.readFileSync('src/modules/runtime/tool-approval.ts', 'utf8');
+          for (const name of ['createFile','edit','write','deleteEntry','manageSkill','schedule_task','update_schedule','cancel_schedule','mcp_mutation']) {
+            if (!source.includes('"' + name + '"')) throw new Error('Missing privileged approval invariant: ' + name);
+          }
+          if (!source.includes('mustAlwaysRequireApproval')) throw new Error('Privileged approval invariant is not enforced below run-level autoApprove');
+          NODE
+      - name: Unit tests
+        run: pnpm test
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit

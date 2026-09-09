@@ -88,10 +88,7 @@
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/TecnicalBot/mobile-agent"
-  },
+  "repository": { "type": "git", "url": "https://github.com/TecnicalBot/mobile-agent" },
   "license": "MIT",
   "scripts": {
     "start": "expo start",
@@ -102,13 +99,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "expo lint",
+    "security:forensic": "node ./scripts/security-forensic-gate.mjs",
     "postinstall": "node ./scripts/patch-ai-sdk-react-native.js"
   },
   "private": true,
   "packageManager": "pnpm@10.29.2",
-  "expo": {
-    "autolinking": {
-      "nativeModulesDir": "./modules"
-    }
-  }
+  "expo": { "autolinking": { "nativeModulesDir": "./modules" } }
 }
