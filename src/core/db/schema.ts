@@ -235,24 +235,11 @@ export const memories = sqliteTable(
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     sourceConversationId: text("source_conversation_id"),
     sourceMessageId: text("source_message_id"),
-    trust: text("trust").notNull().default("untrusted"),
-    status: text("status").notNull().default("active"),
-    sourceKind: text("source_kind").notNull().default("conversation"),
-    sourceRef: text("source_ref"),
-    validFrom: text("valid_from").notNull(),
-    staleAfter: text("stale_after"),
-    supersedes: text("supersedes"),
-    supersededBy: text("superseded_by"),
-    confidence: integer("confidence_milli").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     archivedAt: text("archived_at"),
   },
-  (table) => [
-    index("idx_memories_updated_at").on(table.updatedAt),
-    index("idx_memories_status_updated_at").on(table.status, table.updatedAt),
-    index("idx_memories_stale_after").on(table.staleAfter),
-  ],
+  (table) => [index("idx_memories_updated_at").on(table.updatedAt)],
 );
 
 export const appSettings = sqliteTable("app_settings", {
