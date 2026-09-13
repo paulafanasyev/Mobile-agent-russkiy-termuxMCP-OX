@@ -1,3 +1,4 @@
+import { createMemoryRepository } from "@/core/db/repositories/memory-repository";
 import type { MemoryRepository } from "@/core/db/repositories/memory-repository";
 import type { AppDatabase } from "@/core/db/repositories/types";
 import type { MemoryStore } from "@/modules/memory/types";
