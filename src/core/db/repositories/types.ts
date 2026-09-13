@@ -2,6 +2,7 @@ import type { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 import type { schema } from "@/core/db/schema";
+import type { MemoryRepository } from "@/core/db/repositories/memory-repository";
 import type { MemoryStore } from "@/modules/memory/types";
 import type {
   AgentMode,
@@ -117,24 +118,25 @@ export interface AgentRunRepository {
   update(
     id: string,
     input: {
-  agentMode?: AgentMode;
-  completedAt?: string | null;
-  externalFolderSession?: ExternalFolderSession | null;
-  fileContextSource?: FileContextSource | null;
-  input?: string;
-  lastError?: string | null;
-  modelId?: string;
-  providerId?: string;
-  resumeCount?: number;
-  retryCount?: number;
-  maxRetries?: number;
-  lastRetryAt?: string | null;
-  selectedFileIds?: string[];
-  startedAt?: string;
-  status?: AgentRunStatus;
-  updatedAt?: string;
-  autoApprove?: boolean;
-  }): Promise<void>;
+      agentMode?: AgentMode;
+      completedAt?: string | null;
+      externalFolderSession?: ExternalFolderSession | null;
+      fileContextSource?: FileContextSource | null;
+      input?: string;
+      lastError?: string | null;
+      modelId?: string;
+      providerId?: string;
+      resumeCount?: number;
+      retryCount?: number;
+      maxRetries?: number;
+      lastRetryAt?: string | null;
+      selectedFileIds?: string[];
+      startedAt?: string;
+      status?: AgentRunStatus;
+      updatedAt?: string;
+      autoApprove?: boolean;
+    },
+  ): Promise<void>;
 }
 
 export interface WorkspaceRepository {
@@ -378,6 +380,7 @@ export type Repositories = {
   agentRunRepository: AgentRunRepository;
   configRepository: ConfigRepository;
   conversationRepository: ConversationRepository;
+  memoryRepository: MemoryRepository;
   memoryStore: MemoryStore;
   mcpServerRepository: McpServerRepository;
   messageRepository: MessageRepository;
