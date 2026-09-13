@@ -9,8 +9,8 @@ export function createDatabaseMemoryStore(db: AppDatabase): MemoryStore {
     async read() {
       return repository.getActive();
     },
-    async write(content) {
-      return repository.createOrReplace({ content });
+    async write(content, metadata) {
+      return repository.createOrReplace({ content, ...metadata });
     },
     async clear() {
       const current = await repository.getActive();
