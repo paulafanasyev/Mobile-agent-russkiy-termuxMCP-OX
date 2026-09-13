@@ -178,7 +178,7 @@ export const mcpServers = sqliteTable(
     transport: text("transport").$type<McpServerTransport>().notNull(),
     authMode: text("auth_mode").$type<McpServerAuthMode>().notNull(),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-    headerNames: text("header_names_json", { mode: "json").$type<string[]>().notNull().default([]),
+    headerNames: text("header_names_json", { mode: "json" }).$type<string[]>().notNull().default([]),
     oauthClientId: text("oauth_client_id"),
     oauthAuthorizationUrl: text("oauth_authorization_url"),
     oauthTokenUrl: text("oauth_token_url"),
