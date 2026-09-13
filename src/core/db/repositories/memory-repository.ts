@@ -54,7 +54,7 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
         .limit(1)
     )[0];
 
-    if (existingDocument) {
+    if (existingDocument?.status === "active") {
       return existingDocument;
     }
 
@@ -143,7 +143,7 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
         sourceRef: input.sourceRef ?? null,
         validFrom: existing?.validFrom ?? timestamp,
         staleAfter: null,
-        supersedes: existing?.id ?? null,
+        supersedes: null,
         supersededBy: null,
         confidence: input.confidence ?? 0.5,
       };
