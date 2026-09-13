@@ -45,6 +45,17 @@ function toMemoryEntry(file: File, content: string): MemoryEntry {
     ).toISOString(),
     updatedAt: new Date(file.lastModified ?? now).toISOString(),
     archivedAt: null,
+    trust: "untrusted",
+    status: "active",
+    sourceKind: "conversation",
+    sourceRef: null,
+    validFrom: new Date(
+      file.creationTime ?? file.lastModified ?? now,
+    ).toISOString(),
+    staleAfter: null,
+    supersedes: null,
+    supersededBy: null,
+    confidence: 0.5,
   };
 }
 
