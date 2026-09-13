@@ -1,8 +1,9 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
 import { serializeSkillToMarkdown } from "@/modules/skills/skill-markdown";
+import { migrateMemoryProvenance } from "@/core/db/memory-provenance-migration";
 
-const DATABASE_VERSION = 22;
+const DATABASE_VERSION = 23;
 
 const CORE_SCHEMA_REPAIR_SQL = `
   PRAGMA journal_mode = WAL;
@@ -339,7 +340,7 @@ export async function migrateAppDatabase(db: SQLiteDatabase) {
       ON schedule_runs(schedule_id, started_at);
     `);
 
-    currentVersion = DATABASE_VERSION;
+    currentVersion = DATABASE_VERSION - 1;
   }
 
   if (currentVersion === 1) {
@@ -772,6 +773,11 @@ export async function migrateAppDatabase(db: SQLiteDatabase) {
     }
 
     currentVersion = 22;
+  }
+
+  if (currentVersion === 22) {
+    await migrateMemoryProvenance(db);
+    currentVersion = DATABASE_VERSION;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);
