@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import type {
   AgentMode,
@@ -157,9 +157,7 @@ export const modelPresets = sqliteTable(
     isDefault: integer("is_default", { mode: "boolean" })
       .notNull()
       .default(false),
-    options: text("options_json", { mode: "json" }).$type<
-      Record<string, unknown> | null
-    >(),
+    options: text("options_json", { mode: "json" }).$type<Record<string, unknown> | null>(),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -180,10 +178,7 @@ export const mcpServers = sqliteTable(
     transport: text("transport").$type<McpServerTransport>().notNull(),
     authMode: text("auth_mode").$type<McpServerAuthMode>().notNull(),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-    headerNames: text("header_names_json", { mode: "json" })
-      .$type<string[]>()
-      .notNull()
-      .default([]),
+    headerNames: text("header_names_json", { mode: "json").$type<string[]>().notNull().default([]),
     oauthClientId: text("oauth_client_id"),
     oauthAuthorizationUrl: text("oauth_authorization_url"),
     oauthTokenUrl: text("oauth_token_url"),
@@ -210,39 +205,22 @@ export const skills = sqliteTable(
     sourceMarkdown: text("source_markdown"),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     autoMatch: integer("auto_match", { mode: "boolean" }).notNull().default(false),
-    matchKeywords: text("match_keywords_json", { mode: "json" })
-      .$type<string[]>()
-      .notNull()
-      .default([]),
-    recommendedMcpServerIds: text("recommended_mcp_server_ids_json", {
-      mode: "json",
-    })
-      .$type<string[]>()
-      .notNull()
-      .default([]),
-    recommendedBuiltInToolKeys: text("recommended_built_in_tool_keys_json", {
-      mode: "json",
-    })
-      .$type<BuiltInToolKey[]>()
-      .notNull()
-      .default([]),
+    matchKeywords: text("match_keywords_json", { mode: "json" }).$type<string[]>().notNull().default([]),
+    recommendedMcpServerIds: text("recommended_mcp_server_ids_json", { mode: "json" }).$type<string[]>().notNull().default([]),
+    recommendedBuiltInToolKeys: text("recommended_built_in_tool_keys_json", { mode: "json" }).$type<BuiltInToolKey[]>().notNull().default([]),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [index("idx_skills_updated_at").on(table.updatedAt)],
 );
 
-export const savedPrompts = sqliteTable(
-  "saved_prompts",
-  {
-    id: text("id").primaryKey().notNull(),
-    title: text("title").notNull(),
-    content: text("content").notNull(),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [index("idx_saved_prompts_updated_at").on(table.updatedAt)],
-);
+export const savedPrompts = sqliteTable("saved_prompts", {
+  id: text("id").primaryKey().notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
 
 export const schedules = sqliteTable(
   "schedules",
@@ -254,24 +232,17 @@ export const schedules = sqliteTable(
     timezone: text("timezone").notNull(),
     providerId: text("provider_id").notNull(),
     modelId: text("model_id").notNull(),
-    autoApprove: integer("auto_approve", { mode: "boolean" })
-      .notNull()
-      .default(true),
+    autoApprove: integer("auto_approve", { mode: "boolean" }).notNull().default(true),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     conversationId: text("conversation_id"),
-    externalFolderSession: text("external_folder_session_json", {
-      mode: "json",
-    }).$type<ExternalFolderSession | null>(),
+    externalFolderSession: text("external_folder_session_json", { mode: "json" }).$type<ExternalFolderSession | null>(),
     lastRunAt: text("last_run_at"),
     nextRunAt: text("next_run_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
-    index("idx_schedules_enabled_next_run_at").on(
-      table.enabled,
-      table.nextRunAt,
-    ),
+    index("idx_schedules_enabled_next_run_at").on(table.enabled, table.nextRunAt),
     index("idx_schedules_updated_at").on(table.updatedAt),
   ],
 );
@@ -280,21 +251,14 @@ export const scheduleRuns = sqliteTable(
   "schedule_runs",
   {
     id: text("id").primaryKey().notNull(),
-    scheduleId: text("schedule_id")
-      .notNull()
-      .references(() => schedules.id, { onDelete: "cascade" }),
+    scheduleId: text("schedule_id").notNull().references(() => schedules.id, { onDelete: "cascade" }),
     runId: text("run_id"),
     status: text("status").$type<ScheduleRunStatus>().notNull(),
     error: text("error"),
     startedAt: text("started_at").notNull(),
     completedAt: text("completed_at"),
   },
-  (table) => [
-    index("idx_schedule_runs_schedule_started_at").on(
-      table.scheduleId,
-      table.startedAt,
-    ),
-  ],
+  (table) => [index("idx_schedule_runs_schedule_started_at").on(table.scheduleId, table.startedAt)],
 );
 
 export const memories = sqliteTable(
@@ -308,8 +272,22 @@ export const memories = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     archivedAt: text("archived_at"),
+    trust: text("trust").$type<"untrusted" | "user-confirmed" | "observed" | "verified">().notNull().default("untrusted"),
+    status: text("status").$type<"active" | "superseded" | "stale" | "archived" | "rejected">().notNull().default("active"),
+    sourceKind: text("source_kind").$type<"conversation" | "runtime" | "device" | "research" | "external-source" | "user">().notNull().default("conversation"),
+    sourceRef: text("source_ref"),
+    validFrom: text("valid_from").notNull().default(""),
+    staleAfter: text("stale_after"),
+    supersedes: text("supersedes"),
+    supersededBy: text("superseded_by"),
+    confidence: real("confidence").notNull().default(0.5),
   },
-  (table) => [index("idx_memories_updated_at").on(table.updatedAt)],
+  (table) => [
+    index("idx_memories_updated_at").on(table.updatedAt),
+    index("idx_memories_status_updated_at").on(table.status, table.updatedAt),
+    index("idx_memories_source_kind_updated_at").on(table.sourceKind, table.updatedAt),
+    index("idx_memories_stale_after").on(table.staleAfter),
+  ],
 );
 
 export const appSettings = sqliteTable("app_settings", {
