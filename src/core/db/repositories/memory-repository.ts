@@ -17,6 +17,15 @@ function toMemoryEntry(row: typeof memories.$inferSelect): MemoryEntry {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     archivedAt: row.archivedAt,
+    trust: row.trust,
+    status: row.status,
+    sourceKind: row.sourceKind,
+    sourceRef: row.sourceRef,
+    validFrom: row.validFrom,
+    staleAfter: row.staleAfter,
+    supersedes: row.supersedes,
+    supersededBy: row.supersededBy,
+    confidence: row.confidence,
   };
 }
 
@@ -27,6 +36,10 @@ export interface MemoryRepository {
     content: string;
     sourceConversationId?: string | null;
     sourceMessageId?: string | null;
+    sourceKind?: MemoryEntry["sourceKind"];
+    sourceRef?: string | null;
+    trust?: MemoryEntry["trust"];
+    confidence?: number;
   }): Promise<MemoryEntry>;
   archive(id: string): Promise<void>;
 }
@@ -116,6 +129,7 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
     async createOrReplace(input) {
       await migrateLegacyRows();
       const timestamp = nowIso();
+      const existing = await this.getById(MEMORY_DOCUMENT_ID);
       const values = {
         content: input.content,
         enabled: true,
@@ -123,18 +137,16 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
         sourceMessageId: input.sourceMessageId ?? null,
         updatedAt: timestamp,
         archivedAt: null,
-        trust: "untrusted" as const,
+        trust: input.trust ?? "untrusted",
         status: "active" as const,
-        sourceKind: "conversation" as const,
-        sourceRef: null,
-        validFrom: timestamp,
+        sourceKind: input.sourceKind ?? "conversation",
+        sourceRef: input.sourceRef ?? null,
+        validFrom: existing?.validFrom ?? timestamp,
         staleAfter: null,
-        supersedes: null,
+        supersedes: existing?.id ?? null,
         supersededBy: null,
-        confidence: 0.5,
+        confidence: input.confidence ?? 0.5,
       };
-
-      const existing = await this.getById(MEMORY_DOCUMENT_ID);
 
       if (existing) {
         await db
@@ -150,11 +162,9 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
       }
 
       const result = await this.getById(MEMORY_DOCUMENT_ID);
-
       if (!result) {
         throw new Error("Failed to persist memory");
       }
-
       return result;
     },
     async archive(id) {
