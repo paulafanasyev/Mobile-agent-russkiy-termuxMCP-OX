@@ -42,7 +42,6 @@ export type AgentRunStatus =
   | "resumable"
   | "retrying";
 export type WorkspaceFileSourceKind = "artifact" | "created" | "imported";
-export type ExternalFolderPlatform = "android" | "ios" | "web";
 export type BuiltInToolKey =
   | "workspaceListFiles"
   | "workspaceRead"
@@ -89,6 +88,9 @@ export type SavedPrompt = {
   createdAt: string;
   updatedAt: string;
 };
+export type MemoryTrust = "untrusted" | "user-confirmed" | "observed" | "verified";
+export type MemoryStatus = "active" | "superseded" | "stale" | "archived" | "rejected";
+export type MemorySourceKind = "conversation" | "runtime" | "device" | "research" | "external-source" | "user";
 export type MemoryEntry = {
   id: string;
   content: string;
@@ -98,6 +100,15 @@ export type MemoryEntry = {
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
+  trust: MemoryTrust;
+  status: MemoryStatus;
+  sourceKind: MemorySourceKind;
+  sourceRef: string | null;
+  validFrom: string;
+  staleAfter: string | null;
+  supersedes: string | null;
+  supersededBy: string | null;
+  confidence: number;
 };
 export type MemoryEvent = {
   id: string;
