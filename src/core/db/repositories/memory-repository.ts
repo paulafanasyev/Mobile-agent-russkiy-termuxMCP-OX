@@ -45,7 +45,9 @@ export interface MemoryRepository {
 }
 
 export function createMemoryRepository(db: AppDatabase): MemoryRepository {
-  async function migrateLegacyRows() {
+  let migrationPromise: Promise<MemoryEntry | null> | null = null;
+
+  async function migrateLegacyRows(): Promise<MemoryEntry | null> {
     const existingDocument = (
       await db
         .select()
@@ -65,7 +67,7 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
       .orderBy(desc(memories.updatedAt));
 
     if (legacyRows.length === 0) {
-      return null;
+      return existingDocument?.status === "archived" ? null : null;
     }
 
     const timestamp = nowIso();
@@ -85,25 +87,48 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
       })
       .where(eq(memories.status, "active"));
 
-    await db.insert(memories).values({
-      id: MEMORY_DOCUMENT_ID,
-      content,
-      enabled: true,
-      sourceConversationId: null,
-      sourceMessageId: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      archivedAt: null,
-      trust: "untrusted",
-      status: "active",
-      sourceKind: "conversation",
-      sourceRef: null,
-      validFrom: timestamp,
-      staleAfter: null,
-      supersedes: null,
-      supersededBy: null,
-      confidence: 0.5,
-    });
+    if (existingDocument) {
+      await db
+        .update(memories)
+        .set({
+          content,
+          enabled: true,
+          sourceConversationId: null,
+          sourceMessageId: null,
+          updatedAt: timestamp,
+          archivedAt: null,
+          trust: "untrusted",
+          status: "active",
+          sourceKind: "conversation",
+          sourceRef: null,
+          validFrom: existingDocument.validFrom || timestamp,
+          staleAfter: null,
+          supersedes: null,
+          supersededBy: null,
+          confidence: 0.5,
+        })
+        .where(eq(memories.id, MEMORY_DOCUMENT_ID));
+    } else {
+      await db.insert(memories).values({
+        id: MEMORY_DOCUMENT_ID,
+        content,
+        enabled: true,
+        sourceConversationId: null,
+        sourceMessageId: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        archivedAt: null,
+        trust: "untrusted",
+        status: "active",
+        sourceKind: "conversation",
+        sourceRef: null,
+        validFrom: timestamp,
+        staleAfter: null,
+        supersedes: null,
+        supersededBy: null,
+        confidence: 0.5,
+      });
+    }
 
     return (
       await db
@@ -114,9 +139,14 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
     )[0] ?? null;
   }
 
+  async function ensureLegacyMigration() {
+    migrationPromise ??= migrateLegacyRows();
+    return migrationPromise;
+  }
+
   return {
     async getActive() {
-      const row = await migrateLegacyRows();
+      const row = await ensureLegacyMigration();
       return row ? toMemoryEntry(row) : null;
     },
     async getById(id) {
@@ -127,7 +157,7 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
       return row ? toMemoryEntry(row) : null;
     },
     async createOrReplace(input) {
-      await migrateLegacyRows();
+      await ensureLegacyMigration();
       const timestamp = nowIso();
       const existing = await this.getById(MEMORY_DOCUMENT_ID);
       const values = {
