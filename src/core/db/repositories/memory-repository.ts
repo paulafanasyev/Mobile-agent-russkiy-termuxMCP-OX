@@ -67,7 +67,7 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
       .orderBy(desc(memories.updatedAt));
 
     if (legacyRows.length === 0) {
-      return existingDocument?.status === "archived" ? null : null;
+      return null;
     }
 
     const timestamp = nowIso();
