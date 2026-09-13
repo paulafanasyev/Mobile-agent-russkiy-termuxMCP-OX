@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 
 import { memories } from "@/core/db/schema";
 import type { MemoryEntry } from "@/core/types/app-state";
@@ -56,26 +56,29 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
         .limit(1)
     )[0];
 
-    if (existingDocument?.status === "active") {
-      return existingDocument;
-    }
-
     const legacyRows = await db
       .select()
       .from(memories)
       .where(eq(memories.status, "active"))
+      .where(ne(memories.id, MEMORY_DOCUMENT_ID))
       .orderBy(desc(memories.updatedAt));
 
     if (legacyRows.length === 0) {
-      return null;
+      return existingDocument?.status === "active"
+        ? existingDocument
+        : null;
     }
 
     const timestamp = nowIso();
-    const content = [
+    const legacyContent = [
       "# Memory",
       "",
       ...legacyRows.map((row) => `- ${row.content}`),
     ].join("\n");
+    const content =
+      existingDocument?.status === "active"
+        ? `${existingDocument.content.trim()}\n\n${legacyContent}`
+        : legacyContent;
 
     await db
       .update(memories)
@@ -85,7 +88,8 @@ export function createMemoryRepository(db: AppDatabase): MemoryRepository {
         status: "archived",
         updatedAt: timestamp,
       })
-      .where(eq(memories.status, "active"));
+      .where(eq(memories.status, "active"))
+      .where(ne(memories.id, MEMORY_DOCUMENT_ID));
 
     if (existingDocument) {
       await db
