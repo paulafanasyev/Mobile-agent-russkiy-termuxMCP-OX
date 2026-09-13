@@ -71,7 +71,13 @@ export function createMemoryTools(input: {
             }),
             execute: async ({ content, reason }) => {
                 const current = await input.memoryStore.read();
-                const memory = await input.memoryStore.write(content);
+                const memory = await input.memoryStore.write(content, {
+                    sourceConversationId: input.conversationId,
+                    sourceMessageId: input.sourceMessageId,
+                    sourceKind: "conversation",
+                    trust: "untrusted",
+                    confidence: 0.5,
+                });
 
                 input.onEvent?.(
                     createEvent({
