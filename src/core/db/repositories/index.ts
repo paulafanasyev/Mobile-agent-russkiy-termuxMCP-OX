@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { createAgentRunRepository } from "@/core/db/repositories/agent-run-repository";
 import { createConfigRepository } from "@/core/db/repositories/config-repository";
 import { createConversationRepository } from "@/core/db/repositories/conversation-repository";
+import { createMemoryRepository } from "@/core/db/repositories/memory-repository";
 import { createMcpServerRepository } from "@/core/db/repositories/mcp-server-repository";
 import { createMessageRepository } from "@/core/db/repositories/message-repository";
 import { createSavedPromptRepository } from "@/core/db/repositories/saved-prompt-repository";
@@ -16,12 +17,14 @@ import type { Repositories } from "@/core/db/repositories/types";
 
 export function createRepositories(sqliteDb: SQLiteDatabase): Repositories {
   const db = createDrizzleDb(sqliteDb);
+  const memoryRepository = createMemoryRepository(db);
 
   return {
     agentRunRepository: createAgentRunRepository(db),
     configRepository: createConfigRepository(db),
     conversationRepository: createConversationRepository(db),
-    memoryStore: createDatabaseMemoryStore(db),
+    memoryRepository,
+    memoryStore: createDatabaseMemoryStore(db, memoryRepository),
     mcpServerRepository: createMcpServerRepository(db),
     messageRepository: createMessageRepository(db),
     savedPromptRepository: createSavedPromptRepository(db),
